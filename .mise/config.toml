@@ -1,0 +1,4 @@
+[tools]
+opentofu = 'latest'
+talosctl = 'latest'
+kubectl = 'latest'
