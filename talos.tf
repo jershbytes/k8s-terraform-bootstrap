@@ -47,7 +47,6 @@ resource "talos_machine_configuration_apply" "controlplane" {
     yamlencode({
       machine = {
         network = {
-          hostname = "talos-${each.key}"
           interfaces = [
             {
               deviceSelector = { physical = true }
@@ -58,9 +57,27 @@ resource "talos_machine_configuration_apply" "controlplane" {
               vip = { ip = var.control_plane_vip }
             }
           ]
-          nameservers = [var.network_gateway]
         }
       }
+    }),
+    # The generated base config ships a HostnameConfig document defaulting to
+    # "auto: stable", which conflicts with a static "hostname" if merged
+    # together. Delete that document first, then add a fresh one with only
+    # "hostname" set.
+    yamlencode({
+      apiVersion = "v1alpha1"
+      kind       = "HostnameConfig"
+      "$patch"   = "delete"
+    }),
+    yamlencode({
+      apiVersion = "v1alpha1"
+      kind       = "HostnameConfig"
+      hostname   = "talos-${each.key}"
+    }),
+    yamlencode({
+      apiVersion  = "v1alpha1"
+      kind        = "ResolverConfig"
+      nameservers = [{ address = var.network_gateway }]
     })
   ]
 }
@@ -79,7 +96,6 @@ resource "talos_machine_configuration_apply" "worker" {
     yamlencode({
       machine = {
         network = {
-          hostname = "talos-${each.key}"
           interfaces = [
             {
               deviceSelector = { physical = true }
@@ -89,9 +105,27 @@ resource "talos_machine_configuration_apply" "worker" {
               ]
             }
           ]
-          nameservers = [var.network_gateway]
         }
       }
+    }),
+    # The generated base config ships a HostnameConfig document defaulting to
+    # "auto: stable", which conflicts with a static "hostname" if merged
+    # together. Delete that document first, then add a fresh one with only
+    # "hostname" set.
+    yamlencode({
+      apiVersion = "v1alpha1"
+      kind       = "HostnameConfig"
+      "$patch"   = "delete"
+    }),
+    yamlencode({
+      apiVersion = "v1alpha1"
+      kind       = "HostnameConfig"
+      hostname   = "talos-${each.key}"
+    }),
+    yamlencode({
+      apiVersion  = "v1alpha1"
+      kind        = "ResolverConfig"
+      nameservers = [{ address = var.network_gateway }]
     })
   ]
 }
@@ -104,9 +138,14 @@ resource "talos_cluster" "this" {
     talos_machine_configuration_apply.worker,
   ]
 
+  # The bootstrap gRPC call must target a real node IP, not the control
+  # plane VIP: the VIP is only brought up by keepalived once etcd has a
+  # leader, which itself depends on bootstrap succeeding first. Using the
+  # VIP here creates a circular dependency that the provider retries
+  # forever with no useful error output (it just looks like a hang).
   client_configuration = talos_machine_secrets.this.client_configuration
   node                 = local.controlplane_ips[0]
-  endpoint             = var.control_plane_vip
+  endpoint             = local.controlplane_ips[0]
   control_plane_nodes  = local.controlplane_ips
   kubernetes_version   = var.kubernetes_version
 }

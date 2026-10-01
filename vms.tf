@@ -9,11 +9,14 @@ resource "proxmox_virtual_environment_vm" "node" {
   vm_id     = each.value.vm_id
   tags      = ["talos", each.value.role, "terraform"]
 
-  # Talos has no cloud-init/agent support in the traditional sense until
-  # explicitly enabled via the qemu-guest-agent system extension, so leave
-  # the agent disabled unless your template was built with that extension.
+  # The Talos template has the qemu-guest-agent system extension baked in,
+  # which tries to start at boot and waits indefinitely for Proxmox to
+  # expose the virtio-serial guest-agent channel. If this is left disabled,
+  # that service never comes up, the node's boot sequence never reports
+  # complete (stuck at STAGE: Booting), and talos_cluster never passes its
+  # health checks. Must stay enabled to match the extension in the image.
   agent {
-    enabled = false
+    enabled = true
   }
 
   stop_on_destroy = true

@@ -14,7 +14,7 @@ variable "proxmox_api_token" {
 variable "proxmox_insecure" {
   description = "Skip TLS certificate verification for the Proxmox API (not needed when using a trusted/Let's Encrypt cert)"
   type        = bool
-  default     = false
+  default     = true
 }
 
 ### Source template ###########################################################
