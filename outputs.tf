@@ -14,13 +14,13 @@ output "node_macs" {
 }
 
 output "talosconfig" {
-  description = "Talos client configuration (talosconfig). Save with: terraform output -raw talosconfig > talosconfig"
+  description = "Talos client configuration (talosconfig). Save with: tofu output -raw talosconfig > talosconfig"
   value       = data.talos_client_configuration.this.talos_config
   sensitive   = true
 }
 
 output "kubeconfig" {
-  description = "Kubernetes client configuration. Save with: terraform output -raw kubeconfig > kubeconfig"
+  description = "Kubernetes client configuration. Save with: tofu output -raw kubeconfig > kubeconfig"
   value       = talos_cluster_kubeconfig.this.kubeconfig_raw
   sensitive   = true
 }

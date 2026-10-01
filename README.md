@@ -82,7 +82,8 @@ terraform init
 terraform plan
 terraform apply
 ```
-
+ [OpenTofu](https://opentofu.org/docs/intro/install/) >= 1.8
+ [`just`](https://just.systems/man/en/) for the project command recipes
 This takes several minutes: cloning 5 VMs, waiting for maintenance-mode
 boot, applying config, bootstrapping etcd, and waiting for full cluster
 health (Talos + Kubernetes).
@@ -90,22 +91,15 @@ health (Talos + Kubernetes).
 Once `apply` completes, pull down your credentials:
 
 ```sh
-terraform output -raw talosconfig > talosconfig
-terraform output -raw kubeconfig > kubeconfig
-
+just init
+just plan
+just apply
 export TALOSCONFIG=$(pwd)/talosconfig
 export KUBECONFIG=$(pwd)/kubeconfig
 
 talosctl health --nodes 172.42.1.10,172.42.1.11,172.42.1.12
 kubectl get nodes -o wide
-```
-
-## Notes / things to double-check for your environment
-
-- **Disk interface**: [vms.tf](./vms.tf) assumes your template's disk is on
-  `scsi0`. If your template uses a different bus/index, update the
-  `disk.interface` value.
-- **Install disk**: machine configs assume Talos should install to `/dev/sda`
+just grab-creds
   (the default for a single `scsi0` disk). Add a `machine.install.disk`
   config patch in [talos.tf](./talos.tf) if your template uses a different
   device.
@@ -121,7 +115,7 @@ kubectl get nodes -o wide
   patching `machine.install.image`).
 
 ## File layout
-
+  [locals.tf](./locals.tf) (and a free IP in-subnet), then `tofu apply`.
 | File                        | Purpose                                               |
 | --------------------------- | ------------------------------------------------------ |
 | `versions.tf`                | Terraform/provider version constraints                |
