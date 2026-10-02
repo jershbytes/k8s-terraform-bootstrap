@@ -17,18 +17,23 @@ variable "proxmox_insecure" {
   default     = true
 }
 
-### Source template ###########################################################
+### Source image ###############################################################
 
-variable "talos_template_vm_id" {
-  description = "VM ID of the existing Talos template to clone"
-  type        = number
-  default     = 912
+variable "talos_iso_file_id" {
+  description = "Proxmox file ID of the Talos nocloud secure boot ISO (e.g. 'local:iso/nocloud-amd64-secureboot.iso'), attached as each VM's CD-ROM for first boot"
+  type        = string
+  default     = "local:iso/nocloud-amd64-secureboot.iso"
 }
 
-variable "talos_template_node" {
-  description = "Proxmox node name where the Talos template currently lives"
+variable "talos_schematic_id" {
+  description = "Talos Image Factory schematic ID matching the uploaded secure boot ISO, used to reference the matching installer-secureboot image"
   type        = string
-  default     = "JTL-HME-PVE-03"
+}
+
+variable "talos_image_version" {
+  description = "Full Talos release version (e.g. 'v1.14.2') baked into the uploaded ISO - used to build the Image Factory installer-secureboot image tag"
+  type        = string
+  default     = "v1.14.2"
 }
 
 variable "proxmox_storage" {

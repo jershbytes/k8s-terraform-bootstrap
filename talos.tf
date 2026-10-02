@@ -44,6 +44,16 @@ resource "talos_machine_configuration_apply" "controlplane" {
   apply_mode                  = "auto"
 
   config_patches = [
+    # Points the install at the Image Factory installer-secureboot image
+    # matching the schematic baked into the uploaded ISO, so Talos installs
+    # itself onto the blank scsi0 disk with Secure Boot intact.
+    yamlencode({
+      machine = {
+        install = {
+          image = "factory.talos.dev/installer-secureboot/${var.talos_schematic_id}:${var.talos_image_version}"
+        }
+      }
+    }),
     yamlencode({
       machine = {
         network = {
@@ -93,6 +103,16 @@ resource "talos_machine_configuration_apply" "worker" {
   apply_mode                  = "auto"
 
   config_patches = [
+    # Points the install at the Image Factory installer-secureboot image
+    # matching the schematic baked into the uploaded ISO, so Talos installs
+    # itself onto the blank scsi0 disk with Secure Boot intact.
+    yamlencode({
+      machine = {
+        install = {
+          image = "factory.talos.dev/installer-secureboot/${var.talos_schematic_id}:${var.talos_image_version}"
+        }
+      }
+    }),
     yamlencode({
       machine = {
         network = {
