@@ -20,20 +20,9 @@ variable "proxmox_insecure" {
 ### Source image ###############################################################
 
 variable "talos_iso_file_id" {
-  description = "Proxmox file ID of the Talos nocloud secure boot ISO (e.g. 'local:iso/nocloud-amd64-secureboot.iso'), attached as each VM's CD-ROM for first boot"
+  description = "Proxmox file ID of the Talos nocloud ISO (e.g. 'local:iso/nocloud-amd64.iso'), attached as each VM's CD-ROM for first boot"
   type        = string
-  default     = "local:iso/nocloud-amd64-secureboot.iso"
-}
-
-variable "talos_schematic_id" {
-  description = "Talos Image Factory schematic ID matching the uploaded secure boot ISO, used to reference the matching installer-secureboot image"
-  type        = string
-}
-
-variable "talos_image_version" {
-  description = "Full Talos release version (e.g. 'v1.14.2') baked into the uploaded ISO - used to build the Image Factory installer-secureboot image tag"
-  type        = string
-  default     = "v1.14.2"
+  default     = "local:iso/nocloud-amd64.iso"
 }
 
 variable "proxmox_storage" {
@@ -66,44 +55,4 @@ variable "vm_disk_gb" {
   description = "Disk size per node, in GB"
   type        = number
   default     = 100
-}
-
-### Cluster networking #########################################################
-
-variable "network_prefix" {
-  description = "CIDR prefix length for the cluster network"
-  type        = number
-  default     = 28
-}
-
-variable "network_gateway" {
-  description = "Gateway/DNS address for the cluster network"
-  type        = string
-  default     = "172.42.1.1"
-}
-
-variable "control_plane_vip" {
-  description = "Shared virtual IP (Talos native VIP) used as the Kubernetes API endpoint across control plane nodes"
-  type        = string
-  default     = "172.42.1.9"
-}
-
-### Talos / Kubernetes versions ################################################
-
-variable "cluster_name" {
-  description = "Name of the Talos/Kubernetes cluster"
-  type        = string
-  default     = "homelab"
-}
-
-variable "talos_version" {
-  description = "Talos version contract used to generate machine configuration"
-  type        = string
-  default     = "v1.14"
-}
-
-variable "kubernetes_version" {
-  description = "Kubernetes version to bootstrap the cluster with"
-  type        = string
-  default     = "v1.37.1"
 }

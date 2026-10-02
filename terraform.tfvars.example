@@ -4,14 +4,7 @@
 proxmox_api_url   = "https://JTL-HME-PVE-01:8006/api2/json"
 proxmox_api_token = "terraform@pve!tf-bootstrap=00000000-0000-0000-0000-000000000000"
 
-talos_iso_file_id   = "local:iso/nocloud-amd64-secureboot.iso"
-talos_schematic_id  = "0000000000000000000000000000000000000000000000000000000000000000"
-talos_image_version = "v1.14.2"
+talos_iso_file_id   = "local:iso/nocloud-amd64.iso"
 
 proxmox_storage = "zfs-storage"
 network_bridge  = "K8S"
-
-network_gateway    = "172.42.1.1"
-control_plane_vip  = "172.42.1.9"
-
-cluster_name = "homelab"

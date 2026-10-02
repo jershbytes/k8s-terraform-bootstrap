@@ -1,9 +1,6 @@
-# Creates 5 VMs spread across the 3-node Proxmox cluster, each booting from
-# the Talos nocloud secure boot ISO on first start. Talos itself is
-# configured later via the talos provider (see talos.tf): the ISO brings the
-# node up in maintenance mode, Terraform applies a machine config whose
-# install.image points at the matching Image Factory installer-secureboot
-# image, and Talos installs itself onto the blank scsi0 disk and reboots.
+# Creates 5 VMs spread across the 3-node Proxmox cluster. They boot from the
+# Talos nocloud ISO and stay in maintenance mode; cluster configuration is
+# handled separately.
 resource "proxmox_virtual_environment_vm" "node" {
   for_each = local.nodes
 
@@ -15,26 +12,25 @@ resource "proxmox_virtual_environment_vm" "node" {
   # The schematic backing the ISO has the qemu-guest-agent system extension
   # baked in, which tries to start at boot and waits indefinitely for
   # Proxmox to expose the virtio-serial guest-agent channel. If this is left
-  # disabled, that service never comes up, the node's boot sequence never
-  # reports complete (stuck at STAGE: Booting), and talos_cluster never
-  # passes its health checks. Must stay enabled to match the extension.
+  # disabled, that service never comes up and the node's boot sequence never
+  # reports complete (stuck at STAGE: Booting). Keep this enabled to match
+  # the extension.
   agent {
     enabled = true
   }
 
+  started         = true
   stop_on_destroy = true
 
-  # Secure Boot requires OVMF (UEFI) firmware plus a q35 machine type, an EFI
-  # disk to persist the UEFI variables/Secure Boot state (with Microsoft's
-  # standard keys pre-enrolled, matching the signed Talos secureboot image),
-  # and a vTPM for measured boot.
+  # Use UEFI without pre-enrolled Secure Boot keys. The vTPM is retained for
+  # compatibility with existing VMs, but Secure Boot is not enabled.
   bios    = "ovmf"
   machine = "q35"
 
   efi_disk {
     datastore_id      = var.proxmox_storage
     type              = "4m"
-    pre_enrolled_keys = true
+    pre_enrolled_keys = false
   }
 
   tpm_state {
@@ -51,10 +47,8 @@ resource "proxmox_virtual_environment_vm" "node" {
     dedicated = var.vm_memory_mb
   }
 
-  # Blank boot disk: Talos installs itself here once the machine config is
-  # applied. Boot order tries this first - it has no bootloader until Talos
-  # installs onto it, so UEFI falls through to the CD-ROM automatically on
-  # first boot, then boots straight from disk on every boot after that.
+  # Keep a blank boot disk so the VM falls through to the ISO into maintenance
+  # mode on every start until cluster configuration is applied elsewhere.
   disk {
     datastore_id = var.proxmox_storage
     interface    = "scsi0"

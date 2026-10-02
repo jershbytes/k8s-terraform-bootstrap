@@ -1,162 +1,76 @@
-# Talos Linux on Proxmox - Terraform Bootstrap
+# Talos Linux VMs on Proxmox
 
-Bootstraps a 5-node Talos Linux Kubernetes cluster (3 control plane, 2 worker)
-on a 3-node Proxmox cluster, booting each VM from a Talos nocloud Secure Boot
-ISO (built via the [Talos Image Factory](https://factory.talos.dev)).
+Creates and starts five Talos Linux VMs across a three-node Proxmox cluster.
+Each VM boots from a standard Talos `nocloud-amd64.iso` into **maintenance
+mode** and remains there. This repository does not configure Talos, bootstrap
+Kubernetes, create an API endpoint, or retrieve cluster credentials. Set up
+and cluster the nodes separately in [k8s-home-ops](https://github.com/jershbytes/k8s-home-ops).
 
-Terraform handles the entire flow in one `apply`:
-
-1. **`bpg/proxmox`** provider creates 5 Secure Boot (OVMF + EFI disk + vTPM)
-   VMs, spread round-robin across your 3 Proxmox nodes, each with a blank
-   boot disk and the uploaded ISO attached as a CD-ROM.
-2. **`siderolabs/talos`** provider generates machine configs - including an
-   `install.image` pointing at the Image Factory `installer-secureboot`
-   image matching your schematic - applies them, bootstraps etcd, waits for
-   cluster health, and retrieves `kubeconfig`/`talosconfig`.
-
-Each VM boots from the ISO into Talos maintenance mode, Terraform applies its
-machine config, and Talos installs itself onto the blank disk and reboots.
-Every boot after that goes straight to disk; the CD-ROM is only ever used on
-first boot.
-
-Ansible is intentionally not used: Talos has no SSH/shell/package manager and
-is designed to be configured declaratively through its own API, which the
-Talos Terraform provider speaks natively.
+The only API Terraform uses is the **Proxmox API** to create and start VMs.
+No Kubernetes API endpoint or Talos API credentials are needed for this step.
 
 ## Topology
 
-| Node     | Role          | Proxmox host     | IP            |
-| -------- | ------------- | ----------------- | ------------- |
-| cp-1     | control plane | JTL-HME-PVE-01     | 172.42.1.10   |
-| cp-2     | control plane | JTL-HME-PVE-02     | 172.42.1.11   |
-| cp-3     | control plane | JTL-HME-PVE-03     | 172.42.1.12   |
-| worker-1 | worker        | JTL-HME-PVE-01     | 172.42.1.13   |
-| worker-2 | worker        | JTL-HME-PVE-02     | 172.42.1.14   |
+| Node     | Intended role | Proxmox host   | DHCP-reserved IP | MAC address       |
+| -------- | ------------- | -------------- | ---------------- | ----------------- |
+| cp-1     | control plane | JTL-HME-PVE-01  | 172.42.1.10      | BC:24:11:00:10:01 |
+| cp-2     | control plane | JTL-HME-PVE-02  | 172.42.1.11      | BC:24:11:00:10:02 |
+| cp-3     | control plane | JTL-HME-PVE-03  | 172.42.1.12      | BC:24:11:00:10:03 |
+| worker-1 | worker        | JTL-HME-PVE-01  | 172.42.1.13      | BC:24:11:00:10:04 |
+| worker-2 | worker        | JTL-HME-PVE-02  | 172.42.1.14      | BC:24:11:00:10:05 |
 
-The Kubernetes API endpoint is `https://172.42.1.9:6443` - a **Talos native
-virtual (shared) IP** that floats across the three control plane nodes via
-layer-2 ARP/etcd leader election. This achieves the same HA goal as
-kube-vip without deploying any extra pod/manifest, since Talos supports it
-natively (`machine.network.interfaces[].vip`).
-
-Edit [locals.tf](./locals.tf) if you want different IPs, VM IDs, placement,
-or to add more nodes. Your `/28` network (172.42.1.0/28) has 13 usable
-addresses; 6 are used (5 nodes + VIP), leaving room for a couple more nodes
-before you'd need to expand the subnet.
+The addresses above are DHCP reservation suggestions, not static addresses
+configured in Talos. Reserve the listed MAC-to-IP pairs on the DHCP server
+for the network connected to the `K8S` bridge so the maintenance-mode nodes
+have predictable addresses. Change the node definitions in [locals.tf](./locals.tf)
+to match your environment.
 
 ## Prerequisites
 
-### 1. Talos Secure Boot ISO + schematic ID
-
-Upload the `nocloud-amd64-secureboot.iso` from the
-[Image Factory](https://factory.talos.dev) (with `secureboot=true`) to a
-Proxmox storage that supports ISO content (e.g. `local`), and note:
-
-- the **file ID** Proxmox assigns it, e.g. `local:iso/nocloud-amd64-secureboot.iso`
-- the **schematic ID** the ISO was built with
-- the **Talos release version** the ISO was built for, e.g. `v1.14.2`
-
-Set these as `talos_iso_file_id`, `talos_schematic_id`, and
-`talos_image_version` in `terraform.tfvars`. The schematic ID and version are
-combined into the installer image reference Talos installs from:
-`factory.talos.dev/installer-secureboot/<schematic_id>:<version>`.
-
-### 2. Proxmox API token
-
-Create a dedicated API token for Terraform (Datacenter -> Permissions ->
-API Tokens), and grant it a role with at least:
-
-`VM.Allocate, VM.Config.Disk, VM.Config.CPU, VM.Config.Memory, VM.Config.Network, VM.Config.Options, VM.Config.CDROM, VM.Audit, VM.PowerMgmt, Datastore.AllocateSpace, Datastore.Audit, Sys.Audit`
-
-The built-in `PVEVMAdmin` + `PVEDatastoreUser` roles cover this if you'd
-rather not build a custom role. **Uncheck "Privilege Separation"** on the
-token, or explicitly grant the role to the token itself (not just the user).
-
-### 3. DHCP static reservations
-
-Each VM's NIC is pinned to a specific MAC address in [locals.tf](./locals.tf)
-so you can reserve the **same IP** for that MAC on your router/DHCP server
-ahead of time. This matters because:
-
-- On first boot (before any Talos config exists), a VM boots from the ISO
-  into Talos "maintenance mode" and requests an address over DHCP.
-- Terraform then applies a machine config that sets that same address as a
-  **static** IP on the node.
-
-Because the DHCP-assigned address and the final static address are
-identical, the node never changes IP mid-bootstrap, and Terraform can talk
-to each node's final IP from the very first `apply`. Run
-`terraform output node_macs` after a plan to see the MAC -> IP pairs to
-reserve.
-
-### 3. Tooling
-
-- [Terraform](https://developer.hashicorp.com/terraform/downloads) >= 1.8
-- [`talosctl`](https://www.talos.dev/latest/talos-guides/install/talosctl/) and
-  [`kubectl`](https://kubernetes.io/docs/tasks/tools/) for day-2 operations
-
-### 4. Tooling
-
-- [OpenTofu](https://opentofu.org/docs/intro/install/) >= 1.8
-- [`just`](https://just.systems/man/en/) for the project command recipes
-- [`talosctl`](https://www.talos.dev/latest/talos-guides/install/talosctl/) and
-  [`kubectl`](https://kubernetes.io/docs/tasks/tools/) for day-2 operations
+1. Upload the standard Talos `nocloud-amd64.iso` to Proxmox storage that
+   supports ISO content and note its Proxmox file ID, such as
+   `local:iso/nocloud-amd64.iso`.
+2. Create a Proxmox API token for Terraform with permissions to create,
+   configure, audit, and power-manage VMs and allocate storage.
+3. Install OpenTofu >= 1.8 and [`just`](https://just.systems/man/en/).
+4. Reserve the node MAC/IP pairs shown above in DHCP.
 
 ## Usage
 
 ```sh
 cp terraform.tfvars.example terraform.tfvars
-# edit terraform.tfvars with your Proxmox API token, ISO file ID,
-# schematic ID, etc.
+# Edit terraform.tfvars with your Proxmox API URL and token,
+# ISO file ID, storage pool, and network bridge.
 
 just init
 just plan
 just apply
 ```
 
-This takes several minutes: creating 5 VMs, waiting for ISO maintenance-mode
-boot, applying config (which triggers the Talos install to disk and a
-reboot), bootstrapping etcd, and waiting for full cluster health (Talos +
-Kubernetes).
-
-Once `apply` completes, pull down your credentials:
-
-```sh
-just grab-creds
-```
-
-This writes `talosconfig`/`kubeconfig`, then runs:
-
-```sh
-talosctl health --nodes 172.42.1.10,172.42.1.11,172.42.1.12
-kubectl get nodes -o wide
-```
+After apply, all five VMs are running the Talos ISO in maintenance mode.
+Check their DHCP leases or use the reservation list to reach them. The
+cluster configuration and Kubernetes API endpoint are intentionally left to
+the separate `k8s-home-ops` workflow.
 
 ## Notes
 
-- **Install disk**: the machine config installs to `/dev/sda`
-  (the default for a single `scsi0` disk). Add a `machine.install.disk`
-  config patch in [talos.tf](./talos.tf) if you change the disk interface.
-- **CPU type**: `cpu.type = "host"` requires all 3 Proxmox hosts to have
-  compatible CPUs (or live migration/consistent features aren't guaranteed).
-  Change to a baseline model (e.g. `x86-64-v2-AES`) if your 3 nodes have
-  different CPU generations.
-- **Scaling up**: to add more workers, add an entry to `local.nodes` in
-  [locals.tf](./locals.tf) (and a free IP in-subnet), then `just apply`.
-- **Upgrades**: bump `kubernetes_version` in `terraform.tfvars` to drive a
-  rolling Kubernetes upgrade via the `talos_cluster` resource. Talos OS
-  upgrades are handled separately (typically via `talosctl upgrade`, or by
-  bumping `talos_image_version` and patching `machine.install.image`).
+- Each VM has a blank `scsi0` disk and boots from the Talos ISO. Since no
+  configuration is applied here, the node stays in maintenance mode and does
+  not install Talos onto that disk.
+- The `qemu-guest-agent` extension on the ISO requires the VM agent channel,
+  so the Proxmox guest agent setting remains enabled.
+- `cpu.type = "host"` requires compatible CPUs across all three Proxmox hosts.
+- Adjust VM sizing, placement, and node addresses in [locals.tf](./locals.tf)
+  and [variables.tf](./variables.tf).
 
 ## File layout
 
-| File                        | Purpose                                               |
-| --------------------------- | ------------------------------------------------------ |
-| `versions.tf`                | Terraform/provider version constraints                |
-| `providers.tf`               | Proxmox + Talos provider configuration                 |
-| `variables.tf`               | Input variables                                        |
-| `locals.tf`                  | Per-node topology (IPs, MACs, VM IDs, placement)       |
-| `vms.tf`                     | Proxmox VM creation (Secure Boot, ISO boot)             |
-| `talos.tf`                   | Talos machine config generation, apply, bootstrap      |
-| `outputs.tf`                 | `kubeconfig`, `talosconfig`, node IP/MAC outputs       |
-| `terraform.tfvars.example`   | Template for your local `terraform.tfvars`             |
+| File                      | Purpose                                        |
+| ------------------------- | ---------------------------------------------- |
+| `versions.tf`             | Terraform/provider version constraints        |
+| `providers.tf`             | Proxmox provider configuration                 |
+| `variables.tf`             | Proxmox, ISO, storage, and VM sizing inputs   |
+| `locals.tf`                | Per-node placement and DHCP reservation details |
+| `vms.tf`                   | Proxmox VM creation and Talos ISO boot         |
+| `outputs.tf`               | Node IP and MAC address maps                   |
+| `terraform.tfvars.example` | Template for local `terraform.tfvars`          |
