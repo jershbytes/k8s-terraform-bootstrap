@@ -1,7 +1,7 @@
 ### Proxmox connection ########################################################
 
 variable "proxmox_api_url" {
-  description = "Proxmox API endpoint, e.g. https://JTL-HME-PVE-01:8006/api2/json"
+  description = "Proxmox API endpoint, e.g. https://pve.example.com:8006/api2/json"
   type        = string
 }
 

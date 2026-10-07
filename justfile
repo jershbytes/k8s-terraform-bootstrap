@@ -22,18 +22,3 @@ plan:
 apply:
   tofu apply --auto-approve
 
-# Fetch credentials, check Talos health, and list K8s nodes.
-grab-creds:
-  #!/bin/bash
-  set -euo pipefail
-  umask 077
-
-  tofu output -raw talosconfig > talosconfig
-  tofu output -raw kubeconfig > kubeconfig
-  chmod 600 talosconfig kubeconfig
-
-  export TALOSCONFIG="$PWD/talosconfig"
-  export KUBECONFIG="$PWD/kubeconfig"
-
-  talosctl health --nodes 172.42.1.10,172.42.1.11,172.42.1.12
-  kubectl get nodes -o wide

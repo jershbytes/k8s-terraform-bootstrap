@@ -7,36 +7,36 @@ locals {
     cp-1 = {
       role        = "controlplane"
       vm_id       = 401
-      target_node = "JTL-HME-PVE-01"
-      ip          = "172.42.1.10"
+      target_node = "pve-01"
+      ip          = "192.168.1.10"
       mac_address = "bc:24:11:00:10:01"
     }
     cp-2 = {
       role        = "controlplane"
       vm_id       = 402
-      target_node = "JTL-HME-PVE-02"
-      ip          = "172.42.1.11"
+      target_node = "pve-02"
+      ip          = "192.168.1.11"
       mac_address = "bc:24:11:00:10:02"
     }
     cp-3 = {
       role        = "controlplane"
       vm_id       = 403
-      target_node = "JTL-HME-PVE-03"
-      ip          = "172.42.1.12"
+      target_node = "pve-03"
+      ip          = "192.168.1.12"
       mac_address = "bc:24:11:00:10:03"
     }
     worker-1 = {
       role        = "worker"
       vm_id       = 404
-      target_node = "JTL-HME-PVE-01"
-      ip          = "172.42.1.13"
+      target_node = "pve-01"
+      ip          = "192.168.1.13"
       mac_address = "bc:24:11:00:10:04"
     }
     worker-2 = {
       role        = "worker"
       vm_id       = 405
-      target_node = "JTL-HME-PVE-02"
-      ip          = "172.42.1.14"
+      target_node = "pve-02"
+      ip          = "192.168.1.14"
       mac_address = "bc:24:11:00:10:05"
     }
   }

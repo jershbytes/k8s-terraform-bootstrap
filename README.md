@@ -3,8 +3,8 @@
 Creates and starts five Talos Linux VMs across a three-node Proxmox cluster.
 Each VM boots from a standard Talos `nocloud-amd64.iso` into **maintenance
 mode** and remains there. This repository does not configure Talos, bootstrap
-Kubernetes, create an API endpoint, or retrieve cluster credentials. Set up
-and cluster the nodes separately in [k8s-home-ops](https://github.com/jershbytes/k8s-home-ops).
+Kubernetes, create an API endpoint, or retrieve cluster credentials. Configure
+and cluster the nodes separately using your preferred Talos workflow.
 
 The only API Terraform uses is the **Proxmox API** to create and start VMs.
 No Kubernetes API endpoint or Talos API credentials are needed for this step.
@@ -13,11 +13,11 @@ No Kubernetes API endpoint or Talos API credentials are needed for this step.
 
 | Node     | Intended role | Proxmox host   | DHCP-reserved IP | MAC address       |
 | -------- | ------------- | -------------- | ---------------- | ----------------- |
-| cp-1     | control plane | JTL-HME-PVE-01  | 172.42.1.10      | BC:24:11:00:10:01 |
-| cp-2     | control plane | JTL-HME-PVE-02  | 172.42.1.11      | BC:24:11:00:10:02 |
-| cp-3     | control plane | JTL-HME-PVE-03  | 172.42.1.12      | BC:24:11:00:10:03 |
-| worker-1 | worker        | JTL-HME-PVE-01  | 172.42.1.13      | BC:24:11:00:10:04 |
-| worker-2 | worker        | JTL-HME-PVE-02  | 172.42.1.14      | BC:24:11:00:10:05 |
+| cp-1     | control plane | pve-01  | 192.168.1.10      | BC:24:11:00:10:01 |
+| cp-2     | control plane | pve-02  | 192.168.1.11      | BC:24:11:00:10:02 |
+| cp-3     | control plane | pve-03  | 192.168.1.12      | BC:24:11:00:10:03 |
+| worker-1 | worker        | pve-01  | 192.168.1.13      | BC:24:11:00:10:04 |
+| worker-2 | worker        | pve-02  | 192.168.1.14      | BC:24:11:00:10:05 |
 
 The addresses above are DHCP reservation suggestions, not static addresses
 configured in Talos. Reserve the listed MAC-to-IP pairs on the DHCP server
@@ -50,7 +50,7 @@ just apply
 After apply, all five VMs are running the Talos ISO in maintenance mode.
 Check their DHCP leases or use the reservation list to reach them. The
 cluster configuration and Kubernetes API endpoint are intentionally left to
-the separate `k8s-home-ops` workflow.
+your own Talos workflow.
 
 ## Notes
 
